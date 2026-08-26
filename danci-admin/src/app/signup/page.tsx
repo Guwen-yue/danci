@@ -1,57 +1,72 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { useAuth } from "@/hooks/use-auth"
-import { AuthShell } from "@/components/auth/auth-shell"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function SignUpPage() {
-  const router = useRouter()
-  const { user, signup } = useAuth()
-  const [name, setName] = React.useState("")
-  const [email, setEmail] = React.useState("")
-  const [password, setPassword] = React.useState("")
-  const [confirmPassword, setConfirmPassword] = React.useState("")
-  const [submitting, setSubmitting] = React.useState(false)
+  const router = useRouter();
+  const { user, needsSetup, loading, signup } = useAuth();
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    if (user) router.replace("/books")
-  }, [user, router])
+    if (loading) return;
+    if (user) {
+      router.replace("/books");
+    } else if (!needsSetup) {
+      // 已有管理员数据，不允许再次注册系统管理员
+      router.replace("/signin");
+    }
+  }, [user, needsSetup, loading, router]);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
-      toast.error("请填写完整的注册信息")
-      return
+      toast.error("请填写完整的注册信息");
+      return;
     }
     if (password.length < 6) {
-      toast.error("密码长度至少为 6 位")
-      return
+      toast.error("密码长度至少为 6 位");
+      return;
     }
     if (password !== confirmPassword) {
-      toast.error("两次输入的密码不一致")
-      return
+      toast.error("两次输入的密码不一致");
+      return;
     }
-    setSubmitting(true)
-    const result = signup({ name, email, password })
-    setSubmitting(false)
+    setSubmitting(true);
+    const result = await signup({ name, email, password });
+    setSubmitting(false);
     if (!result.ok) {
-      toast.error(result.message)
-      return
+      toast.error(result.message);
+      return;
     }
-    toast.success("注册成功")
-    router.replace("/books")
+    toast.success("注册成功");
+    router.replace("/books");
   }
 
   return (
     <AuthShell
-      title="管理员注册"
-      description="注册单词管理后台管理员账号"
+      title="注册系统管理员"
+      description="注册首个系统管理员，初始化单词管理后台"
       footer={
         <>
           已有账号？{" "}
@@ -107,9 +122,9 @@ export default function SignUpPage() {
           />
         </div>
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "注册中..." : "注册"}
+          {submitting ? "注册中..." : "注册并登录"}
         </Button>
       </form>
     </AuthShell>
-  )
+  );
 }

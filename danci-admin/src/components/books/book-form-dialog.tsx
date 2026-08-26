@@ -132,7 +132,7 @@ export function BookFormDialog({
             <Label>状态</Label>
             <Select value={status} onValueChange={(v) => setStatus((v ?? "active") as WordBookStatus)}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{status === "active" ? "启用" : "停用"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">启用</SelectItem>

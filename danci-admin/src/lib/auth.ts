@@ -1,113 +1,101 @@
-export type AdminRole = "super" | "admin"
+import type { AdminRole, PublicUser } from "@/lib/types";
 
-export type AdminUser = {
-  id: string
-  name: string
-  email: string
-  password: string
-  role: AdminRole
-  createdAt: string
-}
+export type { AdminRole, PublicUser };
 
-export type PublicUser = {
-  id: string
-  name: string
-  email: string
-  role: AdminRole
-  createdAt: string
-}
+export type AuthResult = { ok: true; user: PublicUser } | { ok: false; message: string };
+export type SimpleResult = { ok: true } | { ok: false; message: string };
 
-const USERS_KEY = "danci_admin_users"
-const CURRENT_KEY = "danci_admin_current"
+type ApiResponse<T> = { ok: true; data: T } | { ok: false; message: string };
 
-function safeParse<T>(raw: string | null, fallback: T): T {
-  if (!raw) return fallback
+async function request<T>(url: string, init?: RequestInit): Promise<ApiResponse<T>> {
   try {
-    return JSON.parse(raw) as T
+    const res = await fetch(url, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { ok: false, message: data?.error ?? "请求失败，请稍后重试" };
+    }
+    return { ok: true, data: data as T };
   } catch {
-    return fallback
+    return { ok: false, message: "网络异常，请稍后重试" };
   }
 }
 
-function toPublic(user: AdminUser): PublicUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    createdAt: user.createdAt,
-  }
+export type SessionStatus = { user: PublicUser | null; needsSetup: boolean };
+
+/** 获取当前登录状态与是否首次初始化 */
+export async function getSessionStatus(): Promise<SessionStatus> {
+  const res = await request<SessionStatus>("/api/auth/session");
+  return res.ok ? res.data : { user: null, needsSetup: false };
 }
 
-export function getUsers(): AdminUser[] {
-  if (typeof window === "undefined") return []
-  return safeParse<AdminUser[]>(window.localStorage.getItem(USERS_KEY), [])
+/** 登录 */
+export async function signinRequest(email: string, password: string): Promise<AuthResult> {
+  const res = await request<{ user: PublicUser }>("/api/auth/signin", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  return res.ok ? { ok: true, user: res.data.user } : { ok: false, message: res.message };
 }
 
-export function saveUsers(users: AdminUser[]) {
-  window.localStorage.setItem(USERS_KEY, JSON.stringify(users))
+/** 注册首个系统管理员 */
+export async function signupRequest(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResult> {
+  const res = await request<{ user: PublicUser }>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.ok ? { ok: true, user: res.data.user } : { ok: false, message: res.message };
 }
 
-export function setCurrentEmail(email: string | null) {
-  if (email) {
-    window.localStorage.setItem(CURRENT_KEY, email)
-  } else {
-    window.localStorage.removeItem(CURRENT_KEY)
-  }
+/** 退出登录 */
+export async function signoutRequest(): Promise<void> {
+  await request("/api/auth/signout", { method: "POST", body: JSON.stringify({}) });
 }
 
-export function getPublicUsers(): PublicUser[] {
-  return getUsers().map(toPublic)
+export type AdminFormInput = {
+  name: string;
+  email: string;
+  password: string;
+  role: AdminRole;
+};
+
+/** 管理员列表 */
+export async function listAdmins(): Promise<PublicUser[]> {
+  const res = await request<{ users: PublicUser[] }>("/api/admin-users");
+  return res.ok ? res.data.users : [];
 }
 
-export function getCurrentUser(): PublicUser | null {
-  if (typeof window === "undefined") return null
-  const email = window.localStorage.getItem(CURRENT_KEY)
-  if (!email) return null
-  const user = getUsers().find((u) => u.email === email)
-  return user ? toPublic(user) : null
+/** 新建管理员 */
+export async function createAdminRequest(input: AdminFormInput): Promise<SimpleResult> {
+  const res = await request<{ user: PublicUser }>("/api/admin-users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.ok ? { ok: true } : { ok: false, message: res.message };
 }
 
-export type AuthResult = { ok: true; user: PublicUser } | { ok: false; message: string }
-
-export function registerUser(input: {
-  name: string
-  email: string
-  password: string
-}): AuthResult {
-  const users = getUsers()
-  const email = input.email.trim().toLowerCase()
-  if (users.some((u) => u.email === email)) {
-    return { ok: false, message: "该邮箱已注册，请直接登录" }
-  }
-  const user: AdminUser = {
-    id: crypto.randomUUID(),
-    name: input.name.trim(),
-    email,
-    password: input.password,
-    role: users.length === 0 ? "super" : "admin",
-    createdAt: new Date().toISOString(),
-  }
-  saveUsers([...users, user])
-  return { ok: true, user: toPublic(user) }
+/** 编辑管理员 */
+export async function updateAdminRequest(
+  id: string,
+  input: Partial<AdminFormInput>
+): Promise<SimpleResult> {
+  const res = await request<{ user: PublicUser }>(`/api/admin-users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return res.ok ? { ok: true } : { ok: false, message: res.message };
 }
 
-export function signInUser(email: string, password: string): AuthResult {
-  const user = getUsers().find((u) => u.email === email.trim().toLowerCase())
-  if (!user) return { ok: false, message: "该邮箱尚未注册，请先注册" }
-  if (user.password !== password) return { ok: false, message: "密码错误，请重试" }
-  return { ok: true, user: toPublic(user) }
-}
-
-export function deleteUser(id: string): { ok: true } | { ok: false; message: string } {
-  const current = getCurrentUser()
-  if (current?.id === id) {
-    return { ok: false, message: "不能删除当前登录的管理员" }
-  }
-  const remaining = getUsers().filter((u) => u.id !== id)
-  if (remaining.filter((u) => u.role === "super").length === 0) {
-    return { ok: false, message: "至少需要保留一名超级管理员" }
-  }
-  saveUsers(remaining)
-  return { ok: true }
+/** 删除管理员 */
+export async function removeAdminRequest(id: string): Promise<SimpleResult> {
+  const res = await request<{ ok: true }>(`/api/admin-users/${id}`, {
+    method: "DELETE",
+  });
+  return res.ok ? { ok: true } : { ok: false, message: res.message };
 }

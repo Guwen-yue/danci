@@ -1,27 +1,44 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { Menu } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { SidebarContent } from "@/components/admin/sidebar"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import * as React from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Loader2, Menu } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { SidebarContent } from "@/components/admin/sidebar";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
-  const router = useRouter()
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isAdminUsersPage = pathname.startsWith("/admin-users");
 
   React.useEffect(() => {
-    if (!user) router.replace("/signin")
-  }, [user, router])
+    if (loading) return;
+    if (!user) {
+      router.replace("/signin");
+    } else if (isAdminUsersPage && user.role !== "super") {
+      // 普通管理员无权访问管理员管理
+      router.replace("/books");
+    }
+  }, [user, loading, isAdminUsersPage, router]);
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">正在加载...</p>
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
+  }
+
+  if (isAdminUsersPage && user.role !== "super") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
@@ -48,5 +65,5 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto w-full max-w-6xl p-4 md:p-8">{children}</div>
       </main>
     </div>
-  )
+  );
 }

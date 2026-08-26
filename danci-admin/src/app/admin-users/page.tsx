@@ -1,18 +1,22 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Trash2 } from "lucide-react"
-import { toast } from "sonner"
-import { AdminShell } from "@/components/admin/admin-shell"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { AdminShell } from "@/components/admin/admin-shell";
+import {
+  UserFormDialog,
+  type AdminFormData,
+} from "@/components/admin-users/user-form-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +24,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -28,41 +32,98 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { deleteUser, getPublicUsers, type PublicUser } from "@/lib/auth"
-import { formatDateTime } from "@/lib/format"
-import { useAuth } from "@/hooks/use-auth"
+} from "@/components/ui/table";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  createAdminRequest,
+  listAdmins,
+  removeAdminRequest,
+  updateAdminRequest,
+  type SimpleResult,
+} from "@/lib/auth";
+import { formatDateTime } from "@/lib/format";
+import type { PublicUser } from "@/lib/types";
 
 export default function AdminUsersPage() {
-  const { user: currentUser } = useAuth()
-  const [users, setUsers] = React.useState<PublicUser[]>(() => getPublicUsers())
-  const [deleting, setDeleting] = React.useState<PublicUser | null>(null)
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = React.useState<PublicUser[]>([]);
+  const [fetching, setFetching] = React.useState(true);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<PublicUser | null>(null);
+  const [formKey, setFormKey] = React.useState(0);
+  const [deleting, setDeleting] = React.useState<PublicUser | null>(null);
+  const [deletingState, setDeletingState] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    listAdmins().then((list) => {
+      if (cancelled) return;
+      setUsers(list);
+      setFetching(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function refresh() {
-    setUsers(getPublicUsers())
+    listAdmins().then(setUsers);
   }
 
-  function handleDelete() {
-    if (!deleting) return
-    const result = deleteUser(deleting.id)
+  function handleCreate() {
+    setEditing(null);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
+  }
+
+  function handleEdit(user: PublicUser) {
+    setEditing(user);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
+  }
+
+  async function handleSave(data: AdminFormData): Promise<SimpleResult> {
+    const result = editing
+      ? await updateAdminRequest(editing.id, {
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          ...(data.password ? { password: data.password } : {}),
+        })
+      : await createAdminRequest(data);
+    if (result.ok) refresh();
+    return result;
+  }
+
+  async function handleDelete() {
+    if (!deleting) return;
+    setDeletingState(true);
+    const result = await removeAdminRequest(deleting.id);
+    setDeletingState(false);
     if (!result.ok) {
-      toast.error(result.message)
-      setDeleting(null)
-      return
+      toast.error(result.message);
+      setDeleting(null);
+      return;
     }
-    toast.success("管理员已删除")
-    setDeleting(null)
-    refresh()
+    toast.success("管理员已删除");
+    setDeleting(null);
+    refresh();
   }
 
   return (
     <AdminShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">管理员管理</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            管理系统管理员账号，首个注册的账号为超级管理员
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">管理员管理</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              系统管理员可新增管理员，并设置其为系统管理员或普通管理员
+            </p>
+          </div>
+          <Button onClick={handleCreate}>
+            <Plus />
+            新建管理员
+          </Button>
         </div>
 
         <Card>
@@ -83,14 +144,14 @@ export default function AdminUsersPage() {
               </TableHeader>
               <TableBody>
                 {users.map((user) => {
-                  const isSelf = user.id === currentUser?.id
+                  const isSelf = user.id === currentUser?.id;
                   return (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell className="text-muted-foreground">{user.email}</TableCell>
                       <TableCell>
                         <Badge variant={user.role === "super" ? "default" : "secondary"}>
-                          {user.role === "super" ? "超级管理员" : "管理员"}
+                          {user.role === "super" ? "系统管理员" : "普通管理员"}
                         </Badge>
                         {isSelf && (
                           <span className="ml-2 text-xs text-muted-foreground">（当前账号）</span>
@@ -100,25 +161,46 @@ export default function AdminUsersPage() {
                         {formatDateTime(user.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={isSelf}
-                          onClick={() => setDeleting(user)}
-                          aria-label="删除"
-                          title={isSelf ? "不能删除当前登录账号" : "删除"}
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleEdit(user)}
+                            aria-label="编辑"
+                            title="编辑"
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={isSelf}
+                            onClick={() => setDeleting(user)}
+                            aria-label="删除"
+                            title={isSelf ? "不能删除当前登录账号" : "删除"}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )
+                  );
                 })}
-                {users.length === 0 && (
+                {fetching && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" />
+                        加载中...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!fetching && users.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      暂无管理员
+                      暂无管理员，点击右上角「新建管理员」创建
                     </TableCell>
                   </TableRow>
                 )}
@@ -127,6 +209,15 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       </div>
+
+      <UserFormDialog
+        key={formKey}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        user={editing}
+        isSelf={editing?.id === currentUser?.id}
+        onSubmit={handleSave}
+      />
 
       <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
         <DialogContent>
@@ -140,12 +231,12 @@ export default function AdminUsersPage() {
             <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
               取消
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete}>
-              删除
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deletingState}>
+              {deletingState ? "删除中..." : "删除"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminShell>
-  )
+  );
 }

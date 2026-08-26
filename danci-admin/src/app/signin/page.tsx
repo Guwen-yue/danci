@@ -1,41 +1,56 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { useAuth } from "@/hooks/use-auth"
-import { AuthShell } from "@/components/auth/auth-shell"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function SignInPage() {
-  const router = useRouter()
-  const { user, signin } = useAuth()
-  const [email, setEmail] = React.useState("")
-  const [password, setPassword] = React.useState("")
-  const [submitting, setSubmitting] = React.useState(false)
+  const router = useRouter();
+  const { user, needsSetup, loading, signin } = useAuth();
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    if (user) router.replace("/books")
-  }, [user, router])
+    if (loading) return;
+    if (user) {
+      router.replace("/books");
+    } else if (needsSetup) {
+      // 尚无任何管理员，需要先注册首个系统管理员
+      router.replace("/signup");
+    }
+  }, [user, needsSetup, loading, router]);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     if (!email || !password) {
-      toast.error("请输入邮箱和密码")
-      return
+      toast.error("请输入邮箱和密码");
+      return;
     }
-    setSubmitting(true)
-    const result = signin({ email, password })
-    setSubmitting(false)
+    setSubmitting(true);
+    const result = await signin(email, password);
+    setSubmitting(false);
     if (!result.ok) {
-      toast.error(result.message)
-      return
+      toast.error(result.message);
+      return;
     }
-    toast.success("登录成功")
-    router.replace("/books")
+    toast.success("登录成功");
+    router.replace("/books");
   }
 
   return (
@@ -79,5 +94,5 @@ export default function SignInPage() {
         </Button>
       </form>
     </AuthShell>
-  )
+  );
 }

@@ -1,28 +1,31 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { BookMarked, BookOpen, LogOut, Users } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/hooks/use-auth"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-
-const NAV_ITEMS = [
-  { href: "/books", label: "单词书管理", icon: BookOpen },
-  { href: "/admin-users", label: "管理员管理", icon: Users },
-]
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { BookMarked, BookOpen, LogOut, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 export function SidebarContent() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { user, signout } = useAuth()
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, signout } = useAuth();
 
-  function handleSignout() {
-    signout()
-    toast.success("已退出登录")
-    router.replace("/signin")
+  const navItems = [
+    { href: "/books", label: "单词书管理", icon: BookOpen },
+    // 仅系统管理员可见「管理员管理」
+    ...(user?.role === "super"
+      ? [{ href: "/admin-users", label: "管理员管理", icon: Users }]
+      : []),
+  ];
+
+  async function handleSignout() {
+    await signout();
+    toast.success("已退出登录");
+    router.replace("/signin");
   }
 
   return (
@@ -35,8 +38,8 @@ export function SidebarContent() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
-        {NAV_ITEMS.map((item) => {
-          const active = pathname.startsWith(item.href)
+        {navItems.map((item) => {
+          const active = pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -51,7 +54,7 @@ export function SidebarContent() {
               <item.icon className="size-4" />
               {item.label}
             </Link>
-          )
+          );
         })}
       </nav>
 
@@ -76,5 +79,5 @@ export function SidebarContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }
