@@ -82,3 +82,28 @@ ORM 工具中的一种
   - push 推送数据库迁移
   - studio 数据库可视化工具
 npm install drizzle-orm postgres; npm install -D drizzle-kit 
+
+## words 表
+github 下载  zip -> json  (178kb)
+  想创建一个words表，导入这个数据？json -> sql/csv 直接导入数据库
+  ai 上下文  #json 转成csv 格式 ，字段...  178kb token 
+  ai 写一段格式转换脚本(1000token)，本地运行
+
+### 数据清洗
+- 常见的后端功能 
+  scripts/
+    解决一些问题 ，爬虫，数据格式转换等等
+  ai来做? 上下文窗口是有限制的，token的开销  
+  让ai生成一个script脚本，本地运行
+- RLS
+  行安全 words 公共表没必要开启
+  而 每个用户的被单词记录 需要开启
+- prompt 执行上下文考虑
+  1. 给prompt提供充足的上下文
+  数据表，技术架构，放在Agents.md文件
+  2. 隐藏上下文开销，不让ai去读文件，给他文件的格式
+
+## 让ai了解supabase上有books表
+- 本地建schema
+- 后台图书业务
+-  

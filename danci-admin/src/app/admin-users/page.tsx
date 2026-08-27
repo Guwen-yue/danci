@@ -83,11 +83,13 @@ export default function AdminUsersPage() {
   }
 
   async function handleSave(data: AdminFormData): Promise<SimpleResult> {
+    const isSelf = editing?.id === currentUser?.id;
     const result = editing
       ? await updateAdminRequest(editing.id, {
           name: data.name,
           email: data.email,
-          role: data.role,
+          // 当前登录账号的状态和角色不可修改，不向后端提交
+          ...(isSelf ? {} : { role: data.role, status: data.status }),
           ...(data.password ? { password: data.password } : {}),
         })
       : await createAdminRequest(data);
@@ -138,6 +140,7 @@ export default function AdminUsersPage() {
                   <TableHead>姓名</TableHead>
                   <TableHead>邮箱</TableHead>
                   <TableHead>角色</TableHead>
+                  <TableHead>状态</TableHead>
                   <TableHead>创建时间</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
@@ -156,6 +159,13 @@ export default function AdminUsersPage() {
                         {isSelf && (
                           <span className="ml-2 text-xs text-muted-foreground">（当前账号）</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={user.status === "active" ? "default" : "destructive"}
+                        >
+                          {user.status === "active" ? "启用" : "停用"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {formatDateTime(user.createdAt)}
@@ -189,7 +199,7 @@ export default function AdminUsersPage() {
                 })}
                 {fetching && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24">
+                    <TableCell colSpan={6} className="h-24">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <Loader2 className="size-4 animate-spin" />
                         加载中...
@@ -199,7 +209,7 @@ export default function AdminUsersPage() {
                 )}
                 {!fetching && users.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       暂无管理员，点击右上角「新建管理员」创建
                     </TableCell>
                   </TableRow>

@@ -5,12 +5,16 @@ import { adminUsers } from "@/db/schema";
 import { hashPassword } from "@/lib/password";
 import { toPublicUser } from "@/lib/session";
 import { requireSuperUser } from "@/lib/user";
-import type { AdminRole } from "@/lib/types";
+import type { AdminRole, AdminStatus } from "@/lib/types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidRole(role: unknown): role is AdminRole {
   return role === "super" || role === "admin";
+}
+
+function isValidStatus(status: unknown): status is AdminStatus {
+  return status === "active" || status === "disabled";
 }
 
 /** 管理员列表（仅超级管理员） */
@@ -38,6 +42,7 @@ export async function POST(request: Request) {
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const role: AdminRole = isValidRole(body?.role) ? body.role : "admin";
+  const status: AdminStatus = isValidStatus(body?.status) ? body.status : "active";
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: "请填写完整的姓名、邮箱和密码" }, { status: 400 });
@@ -60,7 +65,7 @@ export async function POST(request: Request) {
 
   const [user] = await db
     .insert(adminUsers)
-    .values({ name, email, password: await hashPassword(password), role })
+    .values({ name, email, password: await hashPassword(password), role, status })
     .returning();
   return NextResponse.json({ user: toPublicUser(user) });
 }

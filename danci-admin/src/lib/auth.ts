@@ -1,6 +1,6 @@
-import type { AdminRole, PublicUser } from "@/lib/types";
+import type { AdminRole, AdminStatus, PublicUser } from "@/lib/types";
 
-export type { AdminRole, PublicUser };
+export type { AdminRole, AdminStatus, PublicUser };
 
 export type AuthResult = { ok: true; user: PublicUser } | { ok: false; message: string };
 export type SimpleResult = { ok: true } | { ok: false; message: string };
@@ -63,6 +63,7 @@ export type AdminFormInput = {
   email: string;
   password: string;
   role: AdminRole;
+  status: AdminStatus;
 };
 
 /** 管理员列表 */

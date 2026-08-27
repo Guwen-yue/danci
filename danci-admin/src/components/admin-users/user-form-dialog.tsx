@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import type { AdminRole, PublicUser } from "@/lib/types";
+import type { AdminRole, AdminStatus, PublicUser } from "@/lib/types";
 import type { SimpleResult } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,7 @@ export type AdminFormData = {
   email: string;
   password: string;
   role: AdminRole;
+  status: AdminStatus;
 };
 
 export function UserFormDialog({
@@ -49,6 +50,7 @@ export function UserFormDialog({
   const [email, setEmail] = React.useState(user?.email ?? "");
   const [password, setPassword] = React.useState("");
   const [role, setRole] = React.useState<AdminRole>(user?.role ?? "admin");
+  const [status, setStatus] = React.useState<AdminStatus>(user?.status ?? "active");
   const [submitting, setSubmitting] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -76,6 +78,7 @@ export function UserFormDialog({
       email: email.trim().toLowerCase(),
       password,
       role,
+      status,
     });
     setSubmitting(false);
     if (!result.ok) {
@@ -145,8 +148,24 @@ export function UserFormDialog({
                 <SelectItem value="admin">普通管理员</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>状态</Label>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus((v ?? "active") as AdminStatus)}
+              disabled={isSelf}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>{status === "active" ? "启用" : "停用"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">启用</SelectItem>
+                <SelectItem value="disabled">停用</SelectItem>
+              </SelectContent>
+            </Select>
             {isSelf && (
-              <p className="text-xs text-muted-foreground">不能修改当前登录账号的角色</p>
+              <p className="text-xs text-muted-foreground">当前登录账号的状态和角色不可修改</p>
             )}
           </div>
           <DialogFooter>

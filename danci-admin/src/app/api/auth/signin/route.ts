@@ -27,6 +27,9 @@ export async function POST(request: Request) {
   if (!valid) {
     return NextResponse.json({ error: "密码错误，请重试" }, { status: 401 });
   }
+  if (user.status === "disabled") {
+    return NextResponse.json({ error: "账号已被停用，请联系系统管理员" }, { status: 403 });
+  }
 
   await createSession(user.id);
   return NextResponse.json({ user: toPublicUser(user) });

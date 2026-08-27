@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adminSessions } from "@/db/schema";
 import type { AdminUser } from "@/db/schema";
-import type { AdminRole, PublicUser } from "@/lib/types";
+import type { AdminRole, AdminStatus, PublicUser } from "@/lib/types";
 
 const SESSION_COOKIE = "admin_session";
 /** 会话有效期 7 天 */
@@ -17,6 +17,7 @@ export function toPublicUser(user: AdminUser): PublicUser {
     name: user.name,
     email: user.email,
     role: user.role as AdminRole,
+    status: user.status as AdminStatus,
     createdAt: iso(user.createdAt),
     updatedAt: iso(user.updatedAt),
   };
@@ -61,7 +62,7 @@ export async function destroySession() {
   await clearSessionCookie();
 }
 
-/** 根据 cookie 获取当前登录用户，会话过期返回 null */
+/** 根据 cookie 获取当前登录用户，会话过期或账号被停用时返回 null */
 export async function getSessionUser(): Promise<PublicUser | null> {
   const token = await getSessionToken();
   if (!token) return null;
@@ -71,6 +72,11 @@ export async function getSessionUser(): Promise<PublicUser | null> {
   });
   if (!session?.user) return null;
   if (new Date(session.expiresAt).getTime() < Date.now()) {
+    await db.delete(adminSessions).where(eq(adminSessions.id, session.id));
+    return null;
+  }
+  if (session.user.status === "disabled") {
+    // 账号被停用：立即销毁会话，不允许继续登录
     await db.delete(adminSessions).where(eq(adminSessions.id, session.id));
     return null;
   }
