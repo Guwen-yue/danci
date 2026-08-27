@@ -1,19 +1,23 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Pencil, Plus, Trash2 } from "lucide-react"
-import { toast } from "sonner"
-import { AdminShell } from "@/components/admin/admin-shell"
-import { BookFormDialog, type BookFormData } from "@/components/books/book-form-dialog"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import Image from "next/image";
+import { BookOpen, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { AdminShell } from "@/components/admin/admin-shell";
+import {
+  BookFormDialog,
+  type BookFormData,
+} from "@/components/books/book-form-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +25,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -29,54 +33,79 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { getBooks, saveBooks, type WordBook } from "@/lib/books"
-import { formatDateTime } from "@/lib/format"
+} from "@/components/ui/table";
+import {
+  createBookRequest,
+  listBooks,
+  removeBookRequest,
+  updateBookRequest,
+  type WordBook,
+} from "@/lib/books";
+import type { SimpleResult } from "@/lib/auth";
+import { formatDateTime } from "@/lib/format";
 
 export default function BooksPage() {
-  const [books, setBooks] = React.useState<WordBook[]>(() => getBooks())
-  const [formOpen, setFormOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<WordBook | null>(null)
-  const [deleting, setDeleting] = React.useState<WordBook | null>(null)
-  const [formKey, setFormKey] = React.useState(0)
+  const [books, setBooks] = React.useState<WordBook[]>([]);
+  const [fetching, setFetching] = React.useState(true);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<WordBook | null>(null);
+  const [formKey, setFormKey] = React.useState(0);
+  const [deleting, setDeleting] = React.useState<WordBook | null>(null);
+  const [deletingState, setDeletingState] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    listBooks().then((list) => {
+      if (cancelled) return;
+      setBooks(list);
+      setFetching(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function refresh() {
+    listBooks().then(setBooks);
+  }
 
   function handleCreate() {
-    setEditing(null)
-    setFormKey((k) => k + 1)
-    setFormOpen(true)
+    setEditing(null);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
   }
 
   function handleEdit(book: WordBook) {
-    setEditing(book)
-    setFormKey((k) => k + 1)
-    setFormOpen(true)
+    setEditing(book);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
   }
 
-  function handleSave(data: BookFormData) {
-    if (editing) {
-      const next = books.map((b) =>
-        b.id === editing.id ? { ...b, ...data, updatedAt: new Date().toISOString() } : b
-      )
-      saveBooks(next)
-      setBooks(next)
-      toast.success("单词书已更新")
-    } else {
-      const now = new Date().toISOString()
-      const book: WordBook = { id: crypto.randomUUID(), ...data, createdAt: now, updatedAt: now }
-      const next = [book, ...books]
-      saveBooks(next)
-      setBooks(next)
-      toast.success("单词书已创建")
+  async function handleSave(data: BookFormData): Promise<SimpleResult> {
+    const result = editing
+      ? await updateBookRequest(editing.id, data)
+      : await createBookRequest(data);
+    if (result.ok) refresh();
+    return result;
+  }
+
+  async function handleDelete() {
+    if (!deleting) return;
+    setDeletingState(true);
+    const result = await removeBookRequest(deleting.id);
+    setDeletingState(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      setDeleting(null);
+      return;
     }
-  }
-
-  function handleDelete() {
-    if (!deleting) return
-    const next = books.filter((b) => b.id !== deleting.id)
-    saveBooks(next)
-    setBooks(next)
-    toast.success("单词书已删除")
-    setDeleting(null)
+    toast.success(
+      result.deletedWords > 0
+        ? `单词书已删除，同时删除 ${result.deletedWords} 个关联单词`
+        : "单词书已删除"
+    );
+    setDeleting(null);
+    refresh();
   }
 
   return (
@@ -104,63 +133,99 @@ export default function BooksPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>书名</TableHead>
-                  <TableHead>分类</TableHead>
+                  <TableHead>封面</TableHead>
+                  <TableHead>标题</TableHead>
                   <TableHead>单词数量</TableHead>
-                  <TableHead>状态</TableHead>
+                  <TableHead>bookId</TableHead>
+                  <TableHead>标签</TableHead>
                   <TableHead>更新时间</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {books.map((book) => (
-                  <TableRow key={book.id}>
-                    <TableCell>
-                      <div className="font-medium">{book.name}</div>
-                      <div className="mt-0.5 line-clamp-1 max-w-xs text-xs text-muted-foreground">
-                        {book.description}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{book.category}</Badge>
-                    </TableCell>
-                    <TableCell>{book.wordCount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant={book.status === "active" ? "default" : "outline"}>
-                        {book.status === "active" ? "启用" : "停用"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {formatDateTime(book.updatedAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleEdit(book)}
-                          aria-label="编辑"
-                          title="编辑"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setDeleting(book)}
-                          aria-label="删除"
-                          title="删除"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
+                {books.map((book) => {
+                  const tags = (book.tags ?? "")
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean);
+                  return (
+                    <TableRow key={book.id}>
+                      <TableCell>
+                        {book.coverUrl ? (
+                          <Image
+                            src={book.coverUrl}
+                            alt={book.title}
+                            width={48}
+                            height={64}
+                            unoptimized
+                            className="h-16 w-12 rounded-md border object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-12 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                            <BookOpen className="size-5" />
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{book.title}</TableCell>
+                      <TableCell>{book.wordCount.toLocaleString()}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {book.bookId}
+                      </TableCell>
+                      <TableCell>
+                        {tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {tags.map((tag) => (
+                              <Badge key={tag} variant="outline">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {formatDateTime(book.updatedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleEdit(book)}
+                            aria-label="编辑"
+                            title="编辑"
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setDeleting(book)}
+                            aria-label="删除"
+                            title="删除"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {fetching && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" />
+                        加载中...
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
-                {books.length === 0 && (
+                )}
+                {!fetching && books.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       暂无单词书，点击右上角「新增单词书」创建
                     </TableCell>
                   </TableRow>
@@ -184,19 +249,19 @@ export default function BooksPage() {
           <DialogHeader>
             <DialogTitle>删除单词书</DialogTitle>
             <DialogDescription>
-              确定要删除「{deleting?.name}」吗？删除后不可恢复。
+              确定要删除「{deleting?.title}」吗？该单词书在 words 表中关联的全部单词（bookId 相同）也会一并删除，删除后不可恢复。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
               取消
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete}>
-              删除
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deletingState}>
+              {deletingState ? "删除中..." : "删除"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminShell>
-  )
+  );
 }

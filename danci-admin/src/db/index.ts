@@ -10,7 +10,15 @@ const globalForDb = globalThis as unknown as {
 };
 
 function createDb() {
-  const client = postgres(connectionString, { max: 1 });
+  const client = postgres(connectionString, {
+    max: 1,
+    // 连接超时 15s，避免网络异常时挂起
+    connect_timeout: 15,
+    // 空闲连接 30s 后关闭
+    idle_timeout: 30,
+    // 单条 SQL 超过 10s 直接取消（连接级参数），防止慢查询占用唯一连接拖垮整个应用
+    connection: { statement_timeout: 10000 },
+  });
   return drizzle(client, { schema });
 }
 

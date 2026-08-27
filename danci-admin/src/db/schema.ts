@@ -52,6 +52,22 @@ export const adminSessionsRelations = relations(adminSessions, ({ one }) => ({
 }));
 
 /**
+ * 单词书表
+ * 保存单词书元数据，通过 bookId 与 words 表关联（一本书对应多个单词）
+ */
+export const books = pgTable("book", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  wordCount: integer("word_count").notNull().default(0),
+  coverUrl: text("cover_url"),
+  bookId: text("book_id").notNull().unique(),
+  /** 标签，逗号分隔存储，如：小学,人教版,三年级 */
+  tags: text("tags"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
  * 单词表
  * 在 Supabase 后台手动创建，用于保存单词数据（如 temp/PEPXiaoXue3_1.json 转换后的内容）
  * 列名区分大小写（带引号），定义时需与原表完全一致
@@ -66,8 +82,22 @@ export const words = pgTable("words", {
   bookId: text("bookId"),
 });
 
+/** 单词书 1 : N 单词（通过 bookId 关联） */
+export const booksRelations = relations(books, ({ many }) => ({
+  words: many(words),
+}));
+
+export const wordsRelations = relations(words, ({ one }) => ({
+  book: one(books, {
+    fields: [words.bookId],
+    references: [books.bookId],
+  }),
+}));
+
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type AdminUserInsert = typeof adminUsers.$inferInsert;
 export type AdminSession = typeof adminSessions.$inferSelect;
+export type Book = typeof books.$inferSelect;
+export type BookInsert = typeof books.$inferInsert;
 export type Word = typeof words.$inferSelect;
 export type WordInsert = typeof words.$inferInsert;

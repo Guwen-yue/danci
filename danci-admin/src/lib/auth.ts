@@ -7,7 +7,7 @@ export type SimpleResult = { ok: true } | { ok: false; message: string };
 
 type ApiResponse<T> = { ok: true; data: T } | { ok: false; message: string };
 
-async function request<T>(url: string, init?: RequestInit): Promise<ApiResponse<T>> {
+export async function request<T>(url: string, init?: RequestInit): Promise<ApiResponse<T>> {
   try {
     const res = await fetch(url, {
       ...init,

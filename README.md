@@ -106,4 +106,13 @@ github 下载  zip -> json  (178kb)
 ## 让ai了解supabase上有books表
 - 本地建schema
 - 后台图书业务
--  
+
+## cascade 级联删除
+  外键声明后面加上
+  on delete cascade
+
+## prompt 颗粒度
+- 上下文一定要准确且清晰
+- 规则或规范，表单字段，业务场景，功能描述
+  详细表达不能让llm去猜
+- llm擅长的，比如生成代码，让他自己去跑.
