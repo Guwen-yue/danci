@@ -116,3 +116,20 @@ github 下载  zip -> json  (178kb)
 - 规则或规范，表单字段，业务场景，功能描述
   详细表达不能让llm去猜
 - llm擅长的，比如生成代码，让他自己去跑.
+
+## 用户端
+- PC端
+  SEO
+- h5手机网页端
+- 客户端
+  - android
+  - ios
+  RN Native/flutter
+- 桌面端
+  c/s架构 electron
+
+## h5 web 应用
+- nextjs 模板
+  不用从0开始开发
+- clear/compact 上下文
+  新项目重新启动新的对话窗口 
