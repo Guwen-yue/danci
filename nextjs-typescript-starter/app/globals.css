@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+
+  /* 暖纸背景 + 细点阵纹理 */
+  .app-shell {
+    background-color: #f7f2e9;
+    background-image: radial-gradient(rgba(43, 38, 31, 0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 底栏安全区适配（iPhone） */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

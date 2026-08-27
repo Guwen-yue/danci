@@ -1,76 +1,96 @@
-import Link from 'next/link';
+'use client';
 
-export default function Page() {
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useMockAuth } from 'app/lib/mock-auth';
+import { MOCK_BOOKS, getBook } from 'app/lib/mock-data';
+import BottomTabs from 'app/components/bottom-tabs';
+import BookCard from 'app/components/book-card';
+import RecentLearningCard from 'app/components/recent-learning-card';
+import SectionTitle from 'app/components/section-title';
+import { UserIcon } from 'app/components/icons';
+import type { ProgressItem } from 'app/lib/types';
+
+export default function HomePage() {
+  const router = useRouter();
+  const { user, progress } = useMockAuth();
+
+  // 取最近更新的有进度记录（lastWordRank > 0）作为「最近学习」
+  const recentProgress = user
+    ? Object.values(progress)
+        .filter((p) => p.lastWordRank > 0)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+    : undefined;
+
+  const recentItem: ProgressItem | undefined = recentProgress
+    ? (() => {
+        const book = getBook(recentProgress.bookId);
+        if (!book) return undefined;
+        return { ...recentProgress, title: book.title, wordCount: book.wordCount };
+      })()
+    : undefined;
+
+  function handleBookClick(bookId: string) {
+    if (user) {
+      router.push(`/learn/${bookId}`);
+    } else {
+      // 未登录：切到「我的」并弹出登录弹窗，登录成功后自动进入该书
+      router.push(`/me?login=1&book=${bookId}`);
+    }
+  }
+
   return (
-    <div className="flex h-screen bg-black">
-      <div className="w-screen h-screen flex flex-col justify-center items-center">
-        <svg
-          width="283"
-          height="64"
-          viewBox="0 0 283 64"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-36 h-36"
-          aria-label="Vercel logo"
-        >
-          <path
-            d="M141.04 16c-11.04 0-19 7.2-19 18s8.96 18 20 18c6.67 0 12.55-2.64 16.19-7.09l-7.65-4.42c-2.02 2.21-5.09 3.5-8.54 3.5-4.79 0-8.86-2.5-10.37-6.5h28.02c.22-1.12.35-2.28.35-3.5 0-10.79-7.96-17.99-19-17.99zm-9.46 14.5c1.25-3.99 4.67-6.5 9.45-6.5 4.79 0 8.21 2.51 9.45 6.5h-18.9zM248.72 16c-11.04 0-19 7.2-19 18s8.96 18 20 18c6.67 0 12.55-2.64 16.19-7.09l-7.65-4.42c-2.02 2.21-5.09 3.5-8.54 3.5-4.79 0-8.86-2.5-10.37-6.5h28.02c.22-1.12.35-2.28.35-3.5 0-10.79-7.96-17.99-19-17.99zm-9.45 14.5c1.25-3.99 4.67-6.5 9.45-6.5 4.79 0 8.21 2.51 9.45 6.5h-18.9zM200.24 34c0 6 3.92 10 10 10 4.12 0 7.21-1.87 8.8-4.92l7.68 4.43c-3.18 5.3-9.14 8.49-16.48 8.49-11.05 0-19-7.2-19-18s7.96-18 19-18c7.34 0 13.29 3.19 16.48 8.49l-7.68 4.43c-1.59-3.05-4.68-4.92-8.8-4.92-6.07 0-10 4-10 10zm82.48-29v46h-9V5h9zM36.95 0L73.9 64H0L36.95 0zm92.38 5l-27.71 48L73.91 5H84.3l17.32 30 17.32-30h10.39zm58.91 12v9.69c-1-.29-2.06-.49-3.2-.49-5.81 0-10 4-10 10V51h-9V17h9v9.2c0-5.08 5.91-9.2 13.2-9.2z"
-            fill="white"
-          />
-        </svg>
-        <div className="text-center max-w-screen-sm mb-10">
-          <h1 className="text-stone-200 font-bold text-2xl">
-            Next.js + Postgres Auth Starter
-          </h1>
-          <p className="text-stone-400 mt-5">
-            This is a{' '}
-            <a
-              href="https://nextjs.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-stone-400 underline hover:text-stone-200 transition-all"
-            >
-              Next.js
-            </a>{' '}
-            starter kit that uses{' '}
-            <a
-              href="https://next-auth.js.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-stone-400 underline hover:text-stone-200 transition-all"
-            >
-              NextAuth.js
-            </a>{' '}
-            for simple email + password login and a{' '}
-            <a
-              href="https://vercel.com/postgres"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-stone-400 underline hover:text-stone-200 transition-all"
-            >
-              Postgres
-            </a>{' '}
-            database to persist the data.
-          </p>
+    <div className="px-5 pb-32 pt-7">
+      <header className="flex items-center justify-between animate-fade-up">
+        <div>
+          <p className="text-xs font-medium text-ink-faint">小学英语同步学习</p>
+          <h1 className="mt-1 text-[26px] font-bold tracking-tight">单词学习</h1>
         </div>
-        <div className="flex space-x-3">
+        {user && (
           <Link
-            href="/protected"
-            className="text-stone-400 underline hover:text-stone-200 transition-all"
+            href="/me"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-card text-accent shadow-card transition active:scale-90"
+            aria-label="我的"
           >
-            Protected Page
+            <UserIcon className="h-6 w-6" />
           </Link>
-          <p className="text-white">·</p>
-          <a
-            href="https://vercel.com/templates/next.js/prisma-postgres-auth-starter"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-stone-400 underline hover:text-stone-200 transition-all"
-          >
-            Deploy to Vercel
-          </a>
+        )}
+      </header>
+
+      {recentItem && (
+        <section
+          className="mt-7 animate-fade-up"
+          style={{ animationDelay: '0.08s' }}
+        >
+          <SectionTitle>最近学习</SectionTitle>
+          <div className="mt-3">
+            <RecentLearningCard
+              item={recentItem}
+              index={MOCK_BOOKS.findIndex((b) => b.bookId === recentItem.bookId)}
+            />
+          </div>
+        </section>
+      )}
+
+      <section
+        className="mt-8 animate-fade-up"
+        style={{ animationDelay: recentItem ? '0.16s' : '0.08s' }}
+      >
+        <SectionTitle>全部单词书</SectionTitle>
+        <div className="mt-3 space-y-3">
+          {MOCK_BOOKS.map((book, i) => (
+            <div key={book.bookId} style={{ animationDelay: `${0.1 + i * 0.05}s` }} className="animate-fade-up">
+              <BookCard
+                book={book}
+                index={i}
+                onClick={() => handleBookClick(book.bookId)}
+              />
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
+
+      <BottomTabs active="home" />
     </div>
   );
 }
