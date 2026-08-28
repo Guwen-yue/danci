@@ -33,8 +33,8 @@ export const books = pgTable('book', {
   bookId: text('book_id').notNull().unique(),
   /** 标签，逗号分隔存储，如：小学,人教版,三年级 */
   tags: text('tags'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
 /**
