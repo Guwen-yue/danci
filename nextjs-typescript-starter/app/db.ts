@@ -1,12 +1,17 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { genSaltSync, hashSync } from 'bcrypt-ts';
-import { users } from 'app/db/schema';
+import { books, users } from 'app/db/schema';
 
 // 表结构统一定义在 app/db/schema.ts（drizzle 迁移的源）
 let client = postgres(`${process.env.POSTGRES_URL!}?sslmode=require`);
 let db = drizzle(client);
+
+/** 全部单词书（首页「全部单词书」列表） */
+export async function listBooks() {
+  return await db.select().from(books).orderBy(desc(books.createdAt));
+}
 
 export async function getUser(email: string) {
   await ensureTableExists();
